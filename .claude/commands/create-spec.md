@@ -1,131 +1,129 @@
 ---
-description: Create a spec file and feature branch for the next Spendly step
-argument-hint: "Step number and feature name e.g. 2 registration"
+description: Create a branch + self-contained spec file for the next session in mvp-design.md
+argument-hint: "Session number, e.g. 2 (or S2)"
 allowed-tools: Read, Write, Glob, Bash(git:*)
 ---
 
-You are a senior developer spinning up a new feature for the
-Spendly expense tracker. Always follow the rules in CLAUDE.md.
+You are a senior engineer preparing the next build **session** for the SliceMatic
+Stage 2 Gradio MVP. The authoritative plan is `mvp-design.md` (the session specs in §5,
+the frozen contracts in §4, conventions in §1), backed by `STAGE2_PLAN.md`.
+
+Your job is ONLY to (a) create the session's git branch and (b) write a self-contained
+spec file under `.claude/specs/`. **DO NOT implement the feature** — implementation happens
+in a separate session the user opens later.
 
 User input: $ARGUMENTS
 
-## Step 1 — Check working directory is clean
-Run `git status` and check for uncommitted, unstaged, or
-untracked files. If any exist, stop immediately and tell
-the user to commit or stash changes before proceeding.
-DO NOT CONTINUE until the working directory is clean.
+## Step 1 — Parse the session number
+From $ARGUMENTS extract integer `N` (accept `2`, `S2`, `s2`, `session 2`). Valid range **1–8**.
+- `NN` = zero-padded 2 digits (1 → `01`).
+If you cannot determine `N`, or it is out of range, stop and ask the user to clarify.
 
-## Step 2 — Parse the arguments
-From $ARGUMENTS extract:
+## Step 2 — Load the session spec from mvp-design.md
+Read `mvp-design.md`. Locate the `### S{N} —` block in **§5**. Extract every field:
+`title`, `Branch`, `Objective`, `Reasoning`, `Prerequisites`, `Reads`, `Creates`/`Modifies`,
+`Tasks`, `Interface produced`, `Acceptance`, `DoD`.
+Also read **§4 (Frozen contracts)** and **§1 (Conventions)** — you will embed the relevant parts.
+- Use the `Branch` value from mvp-design.md **exactly** (e.g. `feat/02-menu-parser`).
+- `feature_slug` = the branch with the `feat/NN-` prefix stripped (e.g. `menu-parser`).
+If there is no `S{N}` block, stop and tell the user.
 
-1. `step_number` — zero-padded to 2 digits: 2 → 02, 11 → 11
+## Step 3 — Ensure a clean, committed baseline
+Run `git status --porcelain`.
+- If there are staged/unstaged changes to **tracked** files → stop; tell the user to commit or stash first.
+- If the repo has **no commits yet** (unborn HEAD) → create a baseline so branches have a base:
+  `git add -A && git commit -m "chore: planning docs baseline"`.
+- Untracked files alongside an otherwise-clean tracked tree are fine (git carries them across branch switches).
+Determine the integration branch `BASE`: detect the current default branch — `master` or `main`
+(`git symbolic-ref --short HEAD` on a fresh repo, or `git branch --list master main`). Use whichever exists.
 
-2. `feature_title` — human readable title in Title Case
-   - Example: "Registration" or "Login and Logout"
+## Step 4 — Verify prerequisites are on BASE
+mvp-design.md lists this session's `Prerequisites` (e.g. S4 needs S2 merged). For each prerequisite,
+sanity-check its work is present on `BASE` (e.g. the expected function exists in `core.py`, or the
+prereq branch was merged). If a prerequisite is clearly missing, warn the user and ask whether to proceed.
 
-3. `feature_slug` — git and file safe slug
-   - Lowercase, kebab-case
-   - Only a-z, 0-9 and -
-   - Maximum 40 characters
-   - Example: registration, login-logout
+## Step 5 — Create the branch
+- `git checkout BASE`
+- `branch_name` = the session's `Branch`. If it already exists (`git branch --list`), append `-02`, `-03`, …
+- `git checkout -b <branch_name>`
+No remote operations — this is a local repo (no `origin`).
 
-4. `branch_name` — format: `feature/<feature_slug>`
-   - Example: `feature/registration`
-
-If you cannot infer these from $ARGUMENTS, ask the user
-to clarify before proceeding.
-
-## Step 3 — Check branch name is not taken
-Run `git branch` to list existing branches.
-If `branch_name` is already taken, append a number:
-`feature/registration-01`, `feature/registration-02` etc.
-
-## Step 4 — Switch to main and pull latest
-Run:
-```
-git checkout main
-git pull origin main
-```
-
-## Step 5 — Create and switch to the feature branch
-Run:
-```
-git checkout -b <branch_name>
-```
-
-## Step 6 — Research the codebase
-Read these files before writing the spec:
-- `CLAUDE.md` — roadmap, conventions, schema
-- `app.py` — existing routes and structure
-- `database/db.py` — existing schema and functions
-- All files in `.claude/specs/` — avoid duplicating existing specs
-
-Check `CLAUDE.md` to confirm the requested step is not already
-marked complete. If it is, warn the user and stop.
-
-## Step 7 — Write the spec
-Generate a spec document with this exact structure:
+## Step 6 — Write the spec file (self-contained)
+Save to `.claude/specs/<NN>-<feature_slug>.md` with **exactly** this structure:
 
 ---
-# Spec: <feature_title>
+# Spec — Session {N}: {title}
 
-## Overview
-One paragraph describing what this feature does and why
-it exists at this stage of the Spendly roadmap.
+## Kickoff prompt (paste into a NEW session)
+> Read `mvp-design.md` in full (especially §1 Conventions, §4 Frozen contracts, and the `S{N}` block in §5),
+> then read this spec file `.claude/specs/<NN>-<feature_slug>.md`. Implement **Session {N}** to completion.
+> Implement strictly to the frozen contracts — do not change any signature or data shape. Touch only the
+> files listed under "Files". When done, run the verification command and confirm every Definition-of-Done
+> item, then report results. Commit your work on the current branch `<branch_name>`.
 
-## Depends on
-Which previous steps this feature requires to be complete.
+## Objective
+{Objective, verbatim from mvp-design.md}
 
-## Routes
-Every new route needed:
-- `METHOD /path` — description — access level (public/logged-in)
+## Why this session (reasoning)
+{Reasoning, verbatim}
 
-If no new routes: state "No new routes".
+## Prerequisites
+{Prerequisites} — confirmed present on `{BASE}`.
 
-## Database changes
-Any new tables, columns, or constraints needed.
-Always verify against `database/db.py` before writing this.
-If none: state "No database changes".
+## Branch
+`{branch_name}`  (base: `{BASE}`)
 
-## Templates
-- **Create:** list new templates with their path
-- **Modify:** list existing templates and what changes
+## Source references to read
+- `mvp-design.md` → §1 conventions, §4 frozen contracts, the `S{N}` block in §5
+- `STAGE2_PLAN.md` → {the section numbers named in this session's "Reads"}
+- {any provided data files this session needs, e.g. Types_of_*.txt}
 
-## Files to change
-Every file that will be modified.
+## Frozen contracts relevant to this session
+{Embed the exact data shapes and/or function signatures from §4 that THIS session implements or calls —
+copy them so the implementer never has to guess. Include the validator return convention if relevant.}
 
-## Files to create
-Every new file that will be created.
+## Files
+- **Create:** {files to create, from Creates}
+- **Modify:** {files to modify, from Modifies}
+- Do not create or modify any other files.
 
-## New dependencies
-Any new pip packages. If none: state "No new dependencies".
+## Implementation tasks
+{The session's `Tasks`, expanded into an ordered, checkable list.}
 
 ## Rules for implementation
-Specific constraints Claude must follow. Always include:
-- No SQLAlchemy or ORMs
-- Parameterised queries only
-- Passwords hashed with werkzeug
-- Use CSS variables — never hardcode hex values
-- All templates extend `base.html`
+- Implement to the §4 frozen contracts exactly; a contract change requires editing `mvp-design.md` first.
+- `core.py` must not import `gradio` (pure logic) — applies to core sessions.
+- Money: `float` + `round(…, 2)`; never hardcode menu data.
+- Gradio pinned at `5.49.1`; Python 3.10–3.12.
+- Conventional commits (`feat:`, `test:`, `chore:`); commit at working checkpoints.
+- {Any session-specific rule, e.g.: keep validation in the primary `.click()` handler, never `.success()`;
+  return the exact §2 error strings; raise `gr.Error` on invalid input.}
 
 ## Definition of done
-A specific testable checklist. Each item must be
-something that can be verified by running the app.
+A testable checklist built from this session's `Acceptance` + `DoD`:
+- [ ] {acceptance item 1}
+- [ ] {acceptance item 2}
+- [ ] Verification command passes (see below)
+- [ ] Work committed on `{branch_name}`; ready to merge into `{BASE}`
+
+## Verification command
+{`pytest -q` for logic sessions; for UI sessions: `python app.py` then the listed browser checks.}
 ---
 
-## Step 8 — Save the spec
-Save to: `.claude/specs/<step_number>-<feature_slug>.md`
+## Step 6.5 — Commit the spec on the branch
+`git add .claude/specs/<NN>-<feature_slug>.md` then
+`git commit -m "docs: spec for session {N} — {title}"`.
+This keeps the working tree clean so the implementing session starts fresh.
 
-## Step 9 — Report to the user
-Print a short summary in this exact format:
+## Step 7 — Report to the user
+Print this summary (and nothing more from the spec body unless asked):
 ```
 Branch:    <branch_name>
-Spec file: .claude/specs/<step_number>-<feature_slug>.md
-Title:     <feature_title>
+Base:      <BASE>
+Spec file: .claude/specs/<NN>-<feature_slug>.md
+Session:   S{N} — {title}
 ```
-
 Then tell the user:
-"Review the spec at `.claude/specs/<step_number>-<feature_slug>.md`
-then enter Plan Mode with Shift+Tab twice to begin implementation."
-
-Do not print the full spec in chat unless explicitly asked.
+"Open a NEW session and paste the **Kickoff prompt** from the spec to implement Session {N}.
+After it finishes and every Definition-of-Done item passes, merge `<branch_name>` into `<BASE>`,
+then run `/create-spec {N+1}` for the next session."
