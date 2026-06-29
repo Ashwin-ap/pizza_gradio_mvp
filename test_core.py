@@ -4,6 +4,7 @@ import core
 from core import (
     load_menu, MenuError,
     validate_name, validate_phone, validate_qty, validate_choice, validate_payment,
+    compute_bill, render_bill_html,
 )
 
 
@@ -315,3 +316,76 @@ def test_payment_invalid():
     ok, msg = validate_payment("4")
     assert ok is False
     assert msg == _PAYMENT_ERR
+
+
+# ---------------------------------------------------------------------------
+# Pricing tests — compute_bill
+# ---------------------------------------------------------------------------
+
+_CHEESE_BURST = {"id": "B3", "name": "Cheese Burst", "price": 229.0}
+_BBQ_CHICKEN  = {"id": "P7", "name": "BBQ Chicken",  "price": 379.0}
+_EXTRA_CHEESE = {"id": "T2", "name": "Extra Cheese",  "price": 69.0}
+
+
+def test_golden_bill():
+    bill = compute_bill(_CHEESE_BURST, _BBQ_CHICKEN, _EXTRA_CHEESE, qty=5)
+    assert bill["unit_price"] == 677.0
+    assert bill["subtotal"] == 3385.0
+    assert bill["discount"] == 338.50
+    assert bill["post_discount"] == 3046.50
+    assert bill["gst"] == 548.37
+    assert bill["total"] == 3594.87
+    assert bill["discount_applied"] is True
+    assert bill["quantity"] == 5
+
+
+def test_discount_boundary_qty4():
+    bill = compute_bill(_CHEESE_BURST, _BBQ_CHICKEN, _EXTRA_CHEESE, qty=4)
+    assert bill["discount"] == 0.00
+    assert bill["discount_applied"] is False
+    assert bill["subtotal"] == 677.0 * 4
+    assert bill["post_discount"] == 677.0 * 4
+    gst = round(677.0 * 4 * 0.18, 2)
+    assert bill["gst"] == gst
+    assert bill["total"] == round(677.0 * 4 + gst, 2)
+
+
+def test_discount_boundary_qty5():
+    bill = compute_bill(_CHEESE_BURST, _BBQ_CHICKEN, _EXTRA_CHEESE, qty=5)
+    assert bill["discount_applied"] is True
+    assert bill["discount"] == round(3385.0 * 0.10, 2)
+
+
+def test_no_discount_case():
+    base    = {"id": "B1", "name": "Thin Crust",   "price": 100.0}
+    pizza   = {"id": "P1", "name": "Margherita",   "price": 200.0}
+    topping = {"id": "T1", "name": "Olives",       "price": 50.0}
+    bill = compute_bill(base, pizza, topping, qty=2)
+    assert bill["unit_price"] == 350.0
+    assert bill["subtotal"] == 700.0
+    assert bill["discount"] == 0.00
+    assert bill["discount_applied"] is False
+    assert bill["post_discount"] == 700.0
+    assert bill["gst"] == round(700.0 * 0.18, 2)
+    assert bill["total"] == round(700.0 + round(700.0 * 0.18, 2), 2)
+
+
+# ---------------------------------------------------------------------------
+# Bill HTML render tests
+# ---------------------------------------------------------------------------
+
+def test_render_bill_html_golden_contains_required():
+    bill = compute_bill(_CHEESE_BURST, _BBQ_CHICKEN, _EXTRA_CHEESE, qty=5)
+    html = render_bill_html(bill, "Rajan")
+    assert "₹3594.87" in html
+    assert "Subtotal" in html
+    assert "Discount" in html
+    assert "GST" in html
+    assert "Total" in html
+    assert "Rajan" in html
+
+
+def test_render_bill_html_no_discount_shows_zero():
+    bill = compute_bill(_CHEESE_BURST, _BBQ_CHICKEN, _EXTRA_CHEESE, qty=4)
+    html = render_bill_html(bill, "Alice")
+    assert "₹0.00" in html

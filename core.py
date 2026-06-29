@@ -149,12 +149,43 @@ def validate_payment(raw: str) -> tuple:
 
 def compute_bill(base: dict, pizza: dict, topping: dict, qty: int) -> dict:
     """Compute the Bill dict for the given items and quantity."""
-    raise NotImplementedError
+    unit_price = base["price"] + pizza["price"] + topping["price"]
+    subtotal = unit_price * qty
+    discount = round(subtotal * 0.10, 2) if qty >= 5 else 0.00
+    post_discount = subtotal - discount
+    gst = round(post_discount * 0.18, 2)
+    total = round(post_discount + gst, 2)
+    return {
+        "unit_price": unit_price,
+        "quantity": qty,
+        "subtotal": subtotal,
+        "discount": discount,
+        "post_discount": post_discount,
+        "gst": gst,
+        "total": total,
+        "discount_applied": qty >= 5,
+    }
 
 
 def render_bill_html(bill: dict, name: str) -> str:
     """Return a styled HTML invoice string (table with ₹ amounts)."""
-    raise NotImplementedError
+    discount_row = (
+        f'<tr><td>Discount (10%)</td><td style="text-align:right">₹{bill["discount"]:.2f}</td></tr>'
+        if bill["discount_applied"]
+        else f'<tr><td>Discount</td><td style="text-align:right">₹0.00</td></tr>'
+    )
+    return f"""<table style="border-collapse:collapse;width:100%;font-family:sans-serif">
+  <tr style="background:#d32f2f;color:white">
+    <th colspan="2" style="padding:10px;text-align:center">SliceMatic — Invoice</th>
+  </tr>
+  <tr><td style="padding:6px">Customer</td><td style="text-align:right;padding:6px">{name}</td></tr>
+  <tr style="background:#f5f5f5"><td style="padding:6px">Unit Price</td><td style="text-align:right;padding:6px">₹{bill["unit_price"]:.2f}</td></tr>
+  <tr><td style="padding:6px">Quantity</td><td style="text-align:right;padding:6px">{bill["quantity"]}</td></tr>
+  <tr style="background:#f5f5f5"><td style="padding:6px">Subtotal</td><td style="text-align:right;padding:6px">₹{bill["subtotal"]:.2f}</td></tr>
+  {discount_row}
+  <tr style="background:#f5f5f5"><td style="padding:6px">GST 18%</td><td style="text-align:right;padding:6px">₹{bill["gst"]:.2f}</td></tr>
+  <tr style="border-top:2px solid #333"><td style="padding:8px"><strong>Total</strong></td><td style="text-align:right;padding:8px"><strong>₹{bill["total"]:.2f}</strong></td></tr>
+</table>"""
 
 
 def format_order_record(order: dict) -> str:
