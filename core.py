@@ -29,6 +29,8 @@ Validator return convention: (ok, payload)
 """
 
 
+import re
+
 class MenuError(Exception):
     """Raised when a menu file is missing or yields zero valid items."""
     pass
@@ -85,27 +87,64 @@ def load_menu(path: str) -> list:
 
 def validate_name(raw: str) -> tuple:
     """(True, clean_name) | (False, error_msg)"""
-    raise NotImplementedError
+    _NAME_ERR = "Name must be 2–40 letters (spaces allowed), no numbers or symbols."
+    s = raw.strip()
+    if not s:
+        return (False, _NAME_ERR)
+    if not re.fullmatch(r"[A-Za-z ]+", s):
+        return (False, _NAME_ERR)
+    if len(s) < 2 or len(s) > 40:
+        return (False, _NAME_ERR)
+    if not any(c.isalpha() for c in s):
+        return (False, _NAME_ERR)
+    return (True, s)
 
 
 def validate_phone(raw: str) -> tuple:
     """(True, phone) | (False, error_msg)"""
-    raise NotImplementedError
+    _PHONE_ERR = "Phone must be exactly 10 digits and start with 6, 7, 8, or 9."
+    s = raw.strip()
+    if len(s) != 10 or not s.isdigit():
+        return (False, _PHONE_ERR)
+    if s[0] not in "6789":
+        return (False, _PHONE_ERR)
+    return (True, s)
 
 
 def validate_qty(raw: str) -> tuple:
     """(True, qty:int) | (False, error_msg)"""
-    raise NotImplementedError
+    _QTY_ERR = "Quantity must be a whole number between 1 and 10."
+    _QTY_MAX_ERR = "Maximum 10 pizzas per order."
+    s = raw.strip()
+    if not s or not re.fullmatch(r"\d+", s):
+        return (False, _QTY_ERR)
+    qty = int(s)
+    if qty == 0:
+        return (False, _QTY_ERR)
+    if qty > 10:
+        return (False, _QTY_MAX_ERR)
+    return (True, qty)
 
 
 def validate_choice(raw: str, n: int) -> tuple:
     """(True, choice:int 1..n) | (False, error_msg)"""
-    raise NotImplementedError
+    _CHOICE_ERR = f"Enter the item NUMBER from the list (1–{n})."
+    s = raw.strip()
+    if not s or not re.fullmatch(r"\d+", s):
+        return (False, _CHOICE_ERR)
+    choice = int(s)
+    if choice < 1 or choice > n:
+        return (False, _CHOICE_ERR)
+    return (True, choice)
 
 
 def validate_payment(raw: str) -> tuple:
     """(True, 'Cash'|'Card'|'UPI') | (False, error_msg)"""
-    raise NotImplementedError
+    _PAYMENT_ERR = "Choose payment: 1 = Cash, 2 = Card, 3 = UPI."
+    s = raw.strip()
+    if s not in PAYMENT_MODES:
+        return (False, _PAYMENT_ERR)
+    return (True, PAYMENT_MODES[s])
 
 
 def compute_bill(base: dict, pizza: dict, topping: dict, qty: int) -> dict:
