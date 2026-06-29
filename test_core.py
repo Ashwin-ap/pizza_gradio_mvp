@@ -1,7 +1,10 @@
 import os
 import pytest
 import core
-from core import load_menu, MenuError
+from core import (
+    load_menu, MenuError,
+    validate_name, validate_phone, validate_qty, validate_choice, validate_payment,
+)
 
 
 def test_import():
@@ -142,3 +145,173 @@ def test_order_preserved(tmp_path):
     path = write_menu(tmp_path, "menu.txt", "B3;C;300\nB1;A;100\nB2;B;200\n")
     items = load_menu(path)
     assert [i["id"] for i in items] == ["B3", "B1", "B2"]
+
+
+# ---------------------------------------------------------------------------
+# Validator tests — 8 mandated edge cases
+# ---------------------------------------------------------------------------
+
+_NAME_ERR = "Name must be 2–40 letters (spaces allowed), no numbers or symbols."
+_PHONE_ERR = "Phone must be exactly 10 digits and start with 6, 7, 8, or 9."
+_QTY_ERR = "Quantity must be a whole number between 1 and 10."
+_QTY_MAX_ERR = "Maximum 10 pizzas per order."
+_PAYMENT_ERR = "Choose payment: 1 = Cash, 2 = Card, 3 = UPI."
+
+
+def _choice_err(n):
+    return f"Enter the item NUMBER from the list (1–{n})."
+
+
+# --- Edge case #1: Name only spaces ---
+def test_name_only_spaces():
+    ok, msg = validate_name("   ")
+    assert ok is False
+    assert msg == _NAME_ERR
+
+
+# --- Edge case #2: Phone starting with 1 ---
+def test_phone_starts_with_1():
+    ok, msg = validate_phone("1234567890")
+    assert ok is False
+    assert msg == _PHONE_ERR
+
+
+# --- Edge case #3: Qty 0 and 11 ---
+def test_qty_zero():
+    ok, msg = validate_qty("0")
+    assert ok is False
+    assert msg == _QTY_ERR
+
+
+def test_qty_eleven():
+    ok, msg = validate_qty("11")
+    assert ok is False
+    assert msg == _QTY_MAX_ERR
+
+
+# --- Edge case #4: Choice 0 and >n ---
+def test_choice_zero():
+    ok, msg = validate_choice("0", 8)
+    assert ok is False
+    assert msg == _choice_err(8)
+
+
+def test_choice_greater_than_n():
+    ok, msg = validate_choice("9", 8)
+    assert ok is False
+    assert msg == _choice_err(8)
+
+
+# --- Edge case #5: Price entered as item number (229 > N=8) ---
+def test_choice_price_as_item_number():
+    ok, msg = validate_choice("229", 8)
+    assert ok is False
+    assert msg == _choice_err(8)
+
+
+# --- Edge case #6: Empty input at every field ---
+def test_empty_name():
+    ok, msg = validate_name("")
+    assert ok is False
+    assert msg == _NAME_ERR
+
+
+def test_empty_phone():
+    ok, msg = validate_phone("")
+    assert ok is False
+    assert msg == _PHONE_ERR
+
+
+def test_empty_qty():
+    ok, msg = validate_qty("")
+    assert ok is False
+    assert msg == _QTY_ERR
+
+
+def test_empty_choice():
+    ok, msg = validate_choice("", 8)
+    assert ok is False
+    assert msg == _choice_err(8)
+
+
+def test_empty_payment():
+    ok, msg = validate_payment("")
+    assert ok is False
+    assert msg == _PAYMENT_ERR
+
+
+# --- Edge case #7: Non-integer qty ---
+def test_qty_non_integer_word():
+    ok, msg = validate_qty("three")
+    assert ok is False
+    assert msg == _QTY_ERR
+
+
+def test_qty_non_integer_decimal():
+    ok, msg = validate_qty("2.5")
+    assert ok is False
+    assert msg == _QTY_ERR
+
+
+# ---------------------------------------------------------------------------
+# Boundary tests
+# ---------------------------------------------------------------------------
+
+def test_qty_boundary_low():
+    assert validate_qty("1") == (True, 1)
+
+
+def test_qty_boundary_high():
+    assert validate_qty("10") == (True, 10)
+
+
+def test_choice_boundary_low():
+    assert validate_choice("1", 8) == (True, 1)
+
+
+def test_choice_boundary_high():
+    assert validate_choice("8", 8) == (True, 8)
+
+
+def test_valid_name():
+    assert validate_name("Rajan Sharma") == (True, "Rajan Sharma")
+
+
+def test_valid_phone():
+    assert validate_phone("9876543210") == (True, "9876543210")
+
+
+def test_payment_cash():
+    assert validate_payment("1") == (True, "Cash")
+
+
+def test_payment_card():
+    assert validate_payment("2") == (True, "Card")
+
+
+def test_payment_upi():
+    assert validate_payment("3") == (True, "UPI")
+
+
+def test_name_with_digits_rejected():
+    ok, msg = validate_name("Ram123")
+    assert ok is False
+    assert msg == _NAME_ERR
+
+
+def test_name_too_short():
+    ok, msg = validate_name("A")
+    assert ok is False
+    assert msg == _NAME_ERR
+
+
+def test_phone_too_short():
+    ok, msg = validate_phone("987654321")
+    assert ok is False
+    assert msg == _PHONE_ERR
+
+
+def test_payment_invalid():
+    ok, msg = validate_payment("4")
+    assert ok is False
+    assert msg == _PAYMENT_ERR
