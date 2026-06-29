@@ -132,7 +132,8 @@ def payment_confirmation(mode: str, total: float) -> str: ...   # per-mode messa
 - **Reasoning:** A clean scaffold means every later session starts from `pytest` green (0 tests) and importable modules — no environment debugging mid-feature. Git history from S1 onward also seeds the commit trail Stage 3 requires.
 - **Prerequisites:** none.
 - **Reads:** this doc §2, §4.
-- **Creates:** `git init`; `requirements.txt` (`gradio==5.49.1`, `pytest`); `.gitignore` (`__pycache__/`, `*.pyc`, `.venv/`, `flagged/`); `core.py` (module docstring + `class MenuError(Exception): pass` + the frozen signatures as stubs raising `NotImplementedError`); `app.py` (stub with `if __name__ == "__main__":` guard); `test_core.py` (imports core, one trivial `test_import` that passes); `README.md` (run/test instructions skeleton). Confirm the 3 `Types_of_*.txt` files exist.
+- **Creates:** `requirements.txt` (`gradio==5.49.1`, `pytest`); `.gitignore` (`__pycache__/`, `*.pyc`, `.venv/`, `flagged/`); `core.py` (module docstring + `class MenuError(Exception): pass` + the frozen signatures as stubs raising `NotImplementedError`); `app.py` (stub with `if __name__ == "__main__":` guard); `test_core.py` (imports core, one trivial `test_import` that passes); `README.md` (run/test instructions skeleton). Confirm the 3 `Types_of_*.txt` files exist.
+- **Git:** the repo is already initialized and pushed to `origin` (`main` tracks `origin/main`) — do **not** run `git init`. Work directly on `main` for this scaffold (or branch `feat/01-setup` if preferred); commit the scaffold and push.
 - **Tasks:** create venv-agnostic files; ensure `pip install -r requirements.txt` resolves; ensure `python -c "import core, app"` succeeds; ensure `pytest -q` passes.
 - **Interface produced:** the stub signatures from §4.2 (all raise `NotImplementedError`).
 - **Acceptance:** `pytest -q` green; `python -c "import core, app"` exits 0; `git log` shows the scaffold commit.
