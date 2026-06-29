@@ -44,7 +44,43 @@ def load_menu(path: str) -> list:
     Raises MenuError if the file is missing OR yields zero valid items.
     Returns list[Item].
     """
-    raise NotImplementedError
+    try:
+        with open(path, encoding="utf-8") as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        raise MenuError(f"Menu file '{path}' not found")
+
+    items = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split(";")
+        if len(parts) < 3:
+            continue
+        if len(parts) > 3:
+            id_ = parts[0]
+            price_str = parts[-1]
+            name = ";".join(parts[1:-1])
+        else:
+            id_, name, price_str = parts
+        id_ = id_.strip()
+        name = name.strip()
+        price_str = price_str.strip()
+        if not id_ or not name:
+            continue
+        try:
+            price = float(price_str)
+        except ValueError:
+            continue
+        if price <= 0:
+            continue
+        items.append({"id": id_, "name": name, "price": price})
+
+    if not items:
+        raise MenuError(f"Menu file '{path}' contains no valid items")
+
+    return items
 
 
 def validate_name(raw: str) -> tuple:
